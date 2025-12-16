@@ -1,5 +1,5 @@
-﻿using Api.Models;
-using Microsoft.AspNetCore.Http;
+using System.Collections.Concurrent;
+using Api.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers
@@ -11,19 +11,42 @@ namespace Api.Controllers
         private static readonly HashSet<string> ValidKeys = new(StringComparer.OrdinalIgnoreCase)
         {
             "ABC123-XYZ789",
-            "LICENSE-2025-LOCAL"
+            "LICENSE-2025-LOCAL",
+            "TRIAL-KEY-0001"
         };
+
+        private static readonly ConcurrentDictionary<string, DateTime> ActivatedKeys = new(StringComparer.OrdinalIgnoreCase);
 
         [HttpPost("activate")]
         public IActionResult Activate([FromBody] LicenseRequest request)
         {
-            if (string.IsNullOrEmpty(request?.LicenseKey))
-                return BadRequest("License key is required.");
+            if (string.IsNullOrWhiteSpace(request?.LicenseKey))
+            {
+                return BadRequest(new ActivationResponse
+                {
+                    Success = false,
+                    Message = "License key is required."
+                });
+            }
 
-            if (ValidKeys.Contains(request.LicenseKey))
-                return Ok(new { message = "Activation successful" });
-            else
-                return BadRequest("Invalid license key."); // ← исправлено!
+            if (!ValidKeys.Contains(request.LicenseKey))
+            {
+                return BadRequest(new ActivationResponse
+                {
+                    Success = false,
+                    Message = "Invalid license key."
+                });
+            }
+
+            var activatedAt = ActivatedKeys.GetOrAdd(request.LicenseKey, _ => DateTime.UtcNow);
+
+            return Ok(new ActivationResponse
+            {
+                Success = true,
+                Message = "Activation successful",
+                ActivatedAt = activatedAt,
+                LicenseKey = request.LicenseKey
+            });
         }
     }
 }
