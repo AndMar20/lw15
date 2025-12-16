@@ -1,0 +1,17 @@
+﻿<Window x:Class="lw15.ActivationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:lw15"
+        mc:Ignorable="d"
+        Title="ActivationWindow" Height="150" Width="350">
+    <StackPanel Margin="20">
+        <TextBlock Text="Введите лицензионный ключ:" Margin="0,0,0,10"/>
+        <TextBox x:Name="TxtLicenseKey" Margin="0,0,0,10" Height="26"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Активировать" Click="BtnActivate_Click" Width="100" Margin="0,0,10,0"/>
+            <Button Content="Выход" Click="BtnCancel_Click" Width="80"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
