@@ -1,14 +1,8 @@
-﻿using System.IO;
-using System.Text;
+using System;
+using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace lw15
 {
@@ -18,8 +12,10 @@ namespace lw15
     public partial class MainWindow : Window
     {
         private static readonly string ActivationFlagPath =
-                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                                 "MyApp", "activated.flag");
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                         "MyApp", "activated.flag");
+
+        private ActivationInfo? _activationInfo;
 
         public MainWindow()
         {
@@ -30,7 +26,7 @@ namespace lw15
                 var activationWindow = new ActivationWindow();
                 if (activationWindow.ShowDialog() == true)
                 {
-                    // Активация успешна — продолжаем
+                    _activationInfo = LoadActivationInfo();
                 }
                 else
                 {
@@ -38,12 +34,25 @@ namespace lw15
                     return;
                 }
             }
+            else
+            {
+                _activationInfo = LoadActivationInfo();
+            }
 
-            // Здесь — основной интерфейс вашего приложения
+            // Основной интерфейс приложения после активации
             Title = "✅ Приложение активировано!";
+
+            var message = "Добро пожаловать! Приложение активировано.";
+            if (_activationInfo != null)
+            {
+                message += $"\nКлюч: {_activationInfo.LicenseKey}";
+                message += $"\nАктивировано: {_activationInfo.ActivatedAt:yyyy-MM-dd HH:mm:ss} UTC";
+            }
+
             Content = new TextBlock
             {
-                Text = "Добро пожаловать! Приложение активировано.",
+                Text = message,
+                TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 FontSize = 18
@@ -52,7 +61,28 @@ namespace lw15
 
         private bool IsActivated()
         {
-            return File.Exists(ActivationFlagPath);
+            return File.Exists(ActivationFlagPath) && LoadActivationInfo() != null;
+        }
+
+        private ActivationInfo? LoadActivationInfo()
+        {
+            try
+            {
+                if (!File.Exists(ActivationFlagPath))
+                {
+                    return null;
+                }
+
+                var json = File.ReadAllText(ActivationFlagPath);
+                return JsonSerializer.Deserialize<ActivationInfo>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

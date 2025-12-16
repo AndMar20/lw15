@@ -1,19 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace lw15
 {
@@ -23,10 +13,16 @@ namespace lw15
     public partial class ActivationWindow : Window
     {
         private const string LicenseCheckUrl = "https://localhost:7272/api/license/activate";
-        
+
         private static readonly string ActivationFlagPath =
-            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
                          "MyApp", "activated.flag");
+
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true
+        };
 
         public ActivationWindow()
         {
@@ -49,18 +45,32 @@ namespace lw15
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await client.PostAsync(LicenseCheckUrl, content);
+                var responseBody = await response.Content.ReadAsStringAsync();
+                var activationResponse = JsonSerializer.Deserialize<ActivationApiResponse>(responseBody, JsonOptions);
 
-                if (response.IsSuccessStatusCode)
+                if (response.IsSuccessStatusCode && activationResponse?.Success == true)
                 {
-                    // Сохраняем флаг активации
-                    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(ActivationFlagPath)!);
-                    File.WriteAllText(ActivationFlagPath, DateTime.UtcNow.ToString("O"));
+                    var activationInfo = new ActivationInfo
+                    {
+                        LicenseKey = activationResponse.LicenseKey ?? key,
+                        ActivatedAt = activationResponse.ActivatedAt ?? DateTime.UtcNow
+                    };
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(ActivationFlagPath)!);
+                    File.WriteAllText(ActivationFlagPath, JsonSerializer.Serialize(activationInfo, JsonOptions));
+
+                    MessageBox.Show(
+                        $"Активация завершена успешно!\nКлюч: {activationInfo.LicenseKey}\nВремя: {activationInfo.ActivatedAt:yyyy-MM-dd HH:mm:ss} UTC",
+                        "Активация",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
                     DialogResult = true;
                     Close();
                 }
                 else
                 {
-                    string error = await response.Content.ReadAsStringAsync();
+                    string error = activationResponse?.Message ?? responseBody;
                     MessageBox.Show($"Активация не удалась:\n{error}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -75,5 +85,13 @@ namespace lw15
             DialogResult = false;
             Close();
         }
+    }
+
+    public class ActivationApiResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string? LicenseKey { get; set; }
+        public DateTime? ActivatedAt { get; set; }
     }
 }
